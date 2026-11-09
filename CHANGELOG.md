@@ -2,6 +2,17 @@
 
 All notable user-visible changes to Better Displays Pro will be documented here.
 
+## [Unreleased]
+
+### Fixed
+
+- Omarchy's per-monitor workspaces are left alone. Each display owns a block of
+  ten workspaces, and Omarchy reconciles their placement itself, so the panel
+  now reads its block map and hides the workspace row instead of assigning a
+  flat 1–10 and writing workspace rules that fight the compositor. Moving a
+  workspace between monitors also no longer counts as an unsaved layout change,
+  which used to block display auto-restore.
+
 ## [1.1.1] - 2026-11-02
 
 ### Fixed

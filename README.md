@@ -53,6 +53,12 @@ omarchy plugin disable omarchy.monitor
 | Layout presets: Extend, Mirror, Built-in only, External only | Workspace 1–10 assignment for the selected display | Resolution, refresh rate, scale (with a density-based suggestion) and rotation |
 | Brightness and text size | Profiles: rename, select, duplicate, delete; the anchor display | Health summary, sanitized report copy, safe repair |
 
+On Omarchy 4.5 and later, each display owns its own block of ten workspaces and
+Omarchy places them itself. The panel reads that block map from Omarchy's state
+file and hides the workspace row: assigning a flat 1–10 would fight the monitor
+that owns the block. Display layout, profiles and everything else work as
+before, and no workspace rules are written while Omarchy manages them.
+
 The header shows the overall state (displays on, extended or mirrored,
 profile match) and holds **Identify**, **Rescan** and **Full screen**, which
 opens a large arrangement editor.

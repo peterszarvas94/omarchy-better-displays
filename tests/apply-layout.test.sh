@@ -516,4 +516,23 @@ jq -e --arg id "$weak_active" '.profiles[] | select(.id == $id)
 rm -rf "$test_root/empty-sysfs"/card0-*
 printf '%s' "$monitors_json" >"$test_root/monitors.json"
 
+# Omarchy's per-monitor workspaces own placement. While its state file names a
+# connected output, a preview must apply the monitor layout but leave workspace
+# rules alone, in both the 4.5 and the monitors/ state locations.
+for blocks_file in \
+  "$test_root/state/omarchy/monitor-workspaces" \
+  "$test_root/state/omarchy/monitors/workspaces"; do
+  mkdir -p "${blocks_file%/*}"
+  printf '0\teDP-1\teDP-1\n1\tDP-1\tTest T1 SN1\n2\t\tFALLBACK\n' >"$blocks_file"
+  : >"$test_root/hyprctl.log"
+  run_layout preview per-monitor-workspaces "$proposed" "$previous" "$workspaces"
+  grep -F -- 'eval hl.monitor' "$test_root/hyprctl.log" >/dev/null
+  if grep -F 'workspace_rule' "$test_root/hyprctl.log" >/dev/null; then
+    echo "workspace rules were written while Omarchy owns per-monitor workspaces" >&2
+    exit 1
+  fi
+  run_layout revert per-monitor-workspaces
+  rm -f "$blocks_file"
+done
+
 echo "apply layout transaction tests passed"

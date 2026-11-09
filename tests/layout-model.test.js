@@ -93,6 +93,22 @@ function display(overrides) {
 }
 
 {
+  // Omarchy's monitor-workspaces state: block, connector, identity. A line
+  // with no connector is a remembered block, not a display on this machine.
+  assert.deepEqual(Model.workspaceBlocks(
+    "0\teDP-1\teDP-1\n1\tDP-1\tPhilips Consumer Electronics Company PHL 273V7\n2\t\tFALLBACK\n"
+  ), {
+    "eDP-1": 0,
+    "DP-1": 1
+  })
+  assert.deepEqual(Model.workspaceBlocks(""), {})
+  assert.deepEqual(Model.workspaceBlocks("not a block map"), {})
+  assert.equal(Model.perMonitorWorkspaces({ "eDP-1": 0 }), true)
+  assert.equal(Model.perMonitorWorkspaces({}), false)
+  assert.equal(Model.perMonitorWorkspaces(null), false)
+}
+
+{
   const resolutions = Model.availableResolutions([
     "1920x1080@60.00Hz",
     "1920x1080@74.97Hz",

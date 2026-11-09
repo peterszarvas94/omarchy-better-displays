@@ -41,6 +41,14 @@ Panel {
   property var workspaceAssignmentsActual: ({})
   property var stagedWorkspaceAssignments: ({})
   property bool workspaceAssignmentsManaged: false
+  // Omarchy's per-monitor workspaces keep their block map here. The shell moved
+  // it under monitors/ after 4.5; read both so an update does not turn the
+  // plugin's workspace assignment back on.
+  property var workspaceBlocksCurrent: ({})
+  property var workspaceBlocksLegacy: ({})
+  readonly property var workspaceBlocks: Object.keys(workspaceBlocksCurrent).length > 0
+    ? workspaceBlocksCurrent : workspaceBlocksLegacy
+  readonly property bool perMonitorWorkspaces: Model.perMonitorWorkspaces(workspaceBlocks)
   readonly property bool workspaceDirty: !Model.workspaceAssignmentsEqual(
     workspaceAssignmentsActual, stagedWorkspaceAssignments)
   readonly property bool layoutDirty: arrangementDirty || settingsDirty || workspaceDirty || anchorDirty
@@ -314,7 +322,7 @@ Panel {
     list.push("textsize")
     if (layoutPreview.length > 0) list.push("arrangement")
     if (selectedDisplay) {
-      list.push("workspaces")
+      if (!root.perMonitorWorkspaces) list.push("workspaces")
       if (resolutionOptions.length > 0) list.push("resolution")
       if (refreshRateOptions.length > 0) list.push("refreshRate")
       list.push("scale")
@@ -761,6 +769,15 @@ Panel {
   }
 
   function updateWorkspaceAssignments(workspacesJson, rulesJson) {
+    // Omarchy's per-monitor workspaces own placement; treating a workspace
+    // that moved between monitors as an unsaved layout would block auto
+    // restore, and writing rules would fight the compositor's reconcile.
+    if (root.perMonitorWorkspaces) {
+      root.workspaceAssignmentsActual = ({})
+      root.stagedWorkspaceAssignments = ({})
+      root.workspaceAssignmentsManaged = false
+      return
+    }
     var workspaces = []
     var rules = []
     try { workspaces = JSON.parse(String(workspacesJson || "[]")) } catch (e) {}
@@ -798,6 +815,7 @@ Panel {
   }
 
   function workspacePayload() {
+    if (root.perMonitorWorkspaces) return ({})
     return root.workspaceAssignmentsManaged || root.workspaceDirty
       ? root.stagedWorkspaceAssignments : ({})
   }
@@ -1387,6 +1405,29 @@ Panel {
     running: root.opened || root.layoutConfirmationPending
     repeat: true
     onTriggered: root.refresh()
+  }
+
+  // The block map Omarchy keeps for per-monitor workspaces. The shell moved it
+  // from the state root into monitors/, so both locations are watched; whichever
+  // names a connector wins.
+  FileView {
+    id: workspaceBlocksCurrentFile
+    path: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/omarchy/monitors/workspaces"
+    watchChanges: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: root.workspaceBlocksCurrent = Model.workspaceBlocks(text())
+    onLoadFailed: root.workspaceBlocksCurrent = ({})
+  }
+
+  FileView {
+    id: workspaceBlocksLegacyFile
+    path: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/omarchy/monitor-workspaces"
+    watchChanges: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: root.workspaceBlocksLegacy = Model.workspaceBlocks(text())
+    onLoadFailed: root.workspaceBlocksLegacy = ({})
   }
 
   Process {
@@ -2359,7 +2400,7 @@ Panel {
             }
 
             Column {
-              visible: !!root.selectedDisplay
+              visible: !!root.selectedDisplay && !root.perMonitorWorkspaces
               width: parent.width
               spacing: Style.space(6)
 

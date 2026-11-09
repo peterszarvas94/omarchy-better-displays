@@ -137,6 +137,7 @@ PanelWindow {
         anchors.left: parent.left
         anchors.right: parent.right
         height: Style.space(52)
+        visible: !controller.perMonitorWorkspaces
 
         Column {
           anchors.left: parent.left
@@ -196,7 +197,7 @@ PanelWindow {
 
       BorderSurface {
         id: arrangementCanvas
-        anchors.top: workspacePicker.bottom
+        anchors.top: workspacePicker.visible ? workspacePicker.bottom : header.bottom
         anchors.bottom: footer.top
         anchors.left: parent.left
         anchors.right: parent.right

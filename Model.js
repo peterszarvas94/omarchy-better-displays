@@ -833,6 +833,30 @@ function ownsDisplayIpc(hostScreen, availableScreens) {
   return names.length > 0 && wanted === names[0]
 }
 
+// Omarchy's per-monitor workspaces give each display a block of ten. The
+// compositor and the bar share the block map in a state file, one line per
+// display ever seen: block, connector while it is plugged in, and identity.
+// When that file names a connected output, workspace placement belongs to
+// Omarchy, so this plugin must not assign workspaces or write workspace rules:
+// its own model is a flat 1-10 and would fight the monitor that owns the block.
+function workspaceBlocks(text) {
+  var blocks = {}
+  var lines = String(text || "").split("\n")
+  for (var i = 0; i < lines.length; i++) {
+    var fields = lines[i].split("\t")
+    if (fields.length < 2) continue
+    var block = parseInt(fields[0], 10)
+    var connector = String(fields[1] || "").trim()
+    if (!isFinite(block) || block < 0 || connector === "") continue
+    blocks[connector] = block
+  }
+  return blocks
+}
+
+function perMonitorWorkspaces(blocks) {
+  return !!blocks && Object.keys(blocks).length > 0
+}
+
 function workspaceNumber(value, maximum) {
   var text = String(value === undefined || value === null ? "" : value).trim()
   if (!/^\d+$/.test(text)) return 0
@@ -1213,6 +1237,8 @@ if (typeof module !== "undefined") {
     workspacesForMonitor: workspacesForMonitor,
     toggleWorkspaceAssignment: toggleWorkspaceAssignment,
     workspaceAssignmentsEqual: workspaceAssignmentsEqual,
+    workspaceBlocks: workspaceBlocks,
+    perMonitorWorkspaces: perMonitorWorkspaces,
     parseDisplays: parseDisplays,
     displayConfirmationPolicy: displayConfirmationPolicy,
     nextExpandedSection: nextExpandedSection,

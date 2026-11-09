@@ -91,6 +91,22 @@ validate_workspace_payload() {
   ' >/dev/null <<<"$1"
 }
 
+# Omarchy gives every monitor a block of ten workspaces and reconciles their
+# placement itself. Its state file names the block of each connected output;
+# while one exists, a flat 1-10 workspace rule would fight the compositor, so
+# the plugin leaves workspace placement alone. Both the 4.5 location and the
+# monitors/ one that replaced it are checked.
+per_monitor_workspaces() {
+  local state_home="${XDG_STATE_HOME:-$HOME/.local/state}" file
+  for file in "$state_home/omarchy/monitors/workspaces" "$state_home/omarchy/monitor-workspaces"; do
+    [[ -f $file ]] || continue
+    if awk -F '\t' '($1 ~ /^[0-9]+$/ && $2 != "") { found = 1; exit } END { exit !found }' "$file"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 apply_payload() {
   local payload="$1"
   local lua_code="" mirror_code=""
@@ -147,6 +163,9 @@ apply_payload() {
 
 apply_workspace_payload() {
   local workspaces="$1"
+  if per_monitor_workspaces; then
+    return 0
+  fi
   local lua_code=""
   local statement workspace monitor is_default
   declare -A default_written=()
@@ -511,6 +530,9 @@ sync_hyprland_rules() {
   local payload="$1" workspaces="${2:-}" live file dir stage lines modeline name width height refresh
   [[ ${DISPLAYS_HYPRLAND_RULES:-1} == 1 ]] || return 0
   [[ -n $workspaces ]] || workspaces='{}'
+  if per_monitor_workspaces; then
+    workspaces='{}'
+  fi
   validate_payload "$payload" && validate_workspace_payload "$workspaces" || return 0
   live=$(hyprctl monitors all -j 2>/dev/null) || live='[]'
 
@@ -583,7 +605,7 @@ sync_hyprland_rules_from_live() {
     | {name:$t.name,x:$t.x,y:$t.y,width:($m.w|tonumber),height:($m.h|tonumber),refreshRate:($m.r|tonumber),scale:$t.scale,transform:($t.transform // 0)}
       + (if $t.mirrorOf then {mirrorOf:$t.mirrorOf} else {} end) end]' <<<"$snapshot") || return 0
   workspaces='{}'
-  if profile_store_load; then
+  if ! per_monitor_workspaces && profile_store_load; then
     store=$(<"$(profile_store_file)")
     names=$(jq -c '[.topology[].name] | sort' <<<"$snapshot")
     workspaces=$(jq -c --argjson names "$names" '
